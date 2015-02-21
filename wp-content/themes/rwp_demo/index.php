@@ -58,7 +58,7 @@
 
 		<article id="loading-times" class="well">
 
-			<a name="page-weight"></a><h3>Loading times, 3G connection (750 kbps)</h3>
+			<a name="loading-times"></a><h3>Loading times, 3G connection (750 kbps)</h3>
 
 			<table class="table">
 				<thead>
