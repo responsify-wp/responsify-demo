@@ -8,6 +8,23 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="Responsify WP. The WordPress plugin that cares about responsive images. So should you.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- Twitter Card data -->
+        <meta name="twitter:card" content="Responsify WP. Cares about responsive images.">
+        <meta name="twitter:site" content="@stefanledin">
+        <meta name="twitter:title" content="Responsify WP">
+        <meta name="twitter:description" content="Responsify WP. The WordPress plugin that cares about responsive images. So should you.">
+        <meta name="twitter:creator" content="@stefanledin">
+        <meta name="twitter:image" content="http://responsifywp.com/img/share.jpg">
+
+        <!-- Open Graph data -->
+        <meta property="og:title" content="Responsify WP">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="http://responsifywp.com">
+        <meta property="og:image" content="http://responsifywp.com/img/share.jpg">
+        <meta property="og:description" content="Responsify WP. The WordPress plugin that cares about responsive images. So should you."> 
+        <meta property="og:site_name" content="Responsify WP">
 		<title>Responsify WP Demo</title>
 		<?php wp_head(); ?>
 	</head>
