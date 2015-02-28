@@ -62,7 +62,7 @@ class Img extends Create_Responsive_image
         $img_attributes = $this->create_attributes($this->settings['attributes']);
         $markup = '<img ';
             if ( count($this->images) == 1 ) : 
-                $markup .= 'src="'.$this->images[0]['src'].'"';
+                $markup .= 'src="'.$this->images[0]['src'].'" ';
             else:
                 $markup .= 'srcset="'.$this->srcset_attribute().'" ';
             endif;
