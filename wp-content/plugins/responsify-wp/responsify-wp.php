@@ -1,14 +1,18 @@
 <?php
 /*
 Plugin Name: Responsify WP
-Version: 1.7.1
+Version: 1.9.6
 Description: Responsify WP is the WordPress plugin that cares about responsive images.
 Author: Stefan Ledin
 Author URI: http://stefanledin.com
 Plugin URI: https://github.com/stefanledin/responsify-wp
 */
 
+require 'includes/Logger.php';
 require 'includes/media_queries.php';
+require 'includes/retina.php';
+require 'includes/custom_media_query_rules.php';
+require 'includes/custom_media_queries.php';
 require 'includes/create_responsive_image.php';
 require 'includes/img.php';
 require 'includes/native-img.php';
@@ -17,11 +21,14 @@ require 'includes/native-element.php';
 require 'includes/span.php';
 require 'includes/style.php';
 require 'includes/picture.php';
+
+require 'includes/rwp_functions.php';
+
 require 'includes/content_filter.php';
 
 class Responsify_WP
 {
-	const VERSION = '1.7.1';
+	const VERSION = '1.9.6';
 
 	protected static $instance = null;
 
@@ -30,12 +37,31 @@ class Responsify_WP
      */
     public function __construct()
 	{
+        $this->disable_native_responsive_images();
+        
         if ( get_option( 'rwp_picturefill', 'on' ) == 'on' ) {
-		  add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+          add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
         }
         add_action( 'after_setup_theme', array( $this, 'apply_content_filters' ) );
+        
+        
         add_filter('plugin_action_links_'.plugin_basename(__FILE__), array( $this, 'settings_link' ) );
 	}
+
+    /**
+     * WordPress 4.4 and above has native support
+     * for responsive images. This feature collides with
+     * RWP and has to be disabled in order for RWP to work.
+     */
+    public function disable_native_responsive_images()
+    {
+        remove_filter( 'the_content', 'wp_make_content_images_responsive' );
+        add_filter( 'wp_calculate_image_srcset', array( $this, 'remove_wp_calculate_image_srcset_filter' ) );
+    }
+    public function remove_wp_calculate_image_srcset_filter( $image_data )
+    {
+        return false;
+    }
 
     /**
      * Creates the singleton
@@ -58,7 +84,9 @@ class Responsify_WP
     {
         $default_filters = array( 'the_content' => 'on', 'post_thumbnail_html' => 'on' );
         $filters = get_option( 'rwp_added_filters', $default_filters );
-        $filters = array_keys($filters);
+        if ( is_array($filters) ) {
+            $filters = array_keys($filters);
+        }
         if ( has_filter( 'rwp_add_filters' ) ) {
             $filters = apply_filters( 'rwp_add_filters', $filters );
         }
@@ -89,7 +117,7 @@ class Responsify_WP
 		if ( $selected_element == 'span' ) {
             wp_enqueue_script( 'picturefill', plugins_url('/src/picturefill.1.2.1.js', __FILE__),  null, null, true);
         } else {
-            wp_enqueue_script( 'picturefill', plugins_url('/src/picturefill.2.2.0.min.js', __FILE__),  null, null, true);
+            wp_enqueue_script( 'picturefill', plugins_url('/src/picturefill.3.0.1.min.js', __FILE__),  null, null, true);
         }
 	}
 }

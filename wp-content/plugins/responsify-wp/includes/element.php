@@ -8,7 +8,14 @@ class Element extends Create_Responsive_image
 	{
 		parent::__construct($id, $settings);
 		$this->set_attributes();
-		$this->markup = $this->create_markup();
+		if ( has_filter( 'rwp_edit_attributes' ) ) {
+            $this->settings['attributes'] = apply_filters( 'rwp_edit_attributes', $this->settings['attributes'] );
+        }
+		$markup = $this->create_markup();
+        if ( get_option( 'rwp_debug_mode', 'off' ) == 'on' ) {
+            $markup = $this->prepend_debug_information( $markup );
+        }
+        $this->markup = $markup;
 	}
 
 	protected function set_attributes()
@@ -50,11 +57,8 @@ class Element extends Create_Responsive_image
 					'srcset' => $srcset_attribute
 				);
 			}
-			$srcset_attribute = $this->srcset_attribute($this->images[count($this->images)-1]);
-			$this->attributes['source'][]['srcset'] = $srcset_attribute;
-			$markup .= '<source '.$source_attributes.' srcset="'.$srcset_attribute.'">';
 			$markup .= '<!--[if IE 9]></video><![endif]-->';
-			$img_srcset_attribute = $this->srcset_attribute($this->images[0]);
+			$img_srcset_attribute = $this->srcset_attribute($this->images[count($this->images)-1]);
 			$markup .= '<img srcset="'.$img_srcset_attribute.'" '.$img_attributes.'>';
 			$this->attributes['img']['srcset'] = $img_srcset_attribute;
 		$markup .= '</picture>';

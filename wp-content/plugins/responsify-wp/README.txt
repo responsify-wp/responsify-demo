@@ -1,9 +1,9 @@
 === Responsify WP ===
 Contributors: stefanledin
-Tags: responsive images, picture, srcset, sizes, picture element, picture markup, picturefill, images, retina, responsive background
+Tags: responsive images, picture, srcset, sizes, picture element, picture markup, picturefill, images, mobile, performance, responsive, retina, responsive background
 Requires at least: 3.8.1
-Tested up to: 4.1
-Stable tag: 1.7.1
+Tested up to: 4.4
+Stable tag: 1.9.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,6 +13,8 @@ Responsive images. Plug and play.
 
 Responsify WP is the WordPress plugin that cares about responsive images.
 
+### Features
+
 * Use ``img`` with srcset/sizes attributes.
 * ...or the ``picture`` element.
 * Works with or without [Picturefill](http://scottjehl.github.io/picturefill/).
@@ -21,7 +23,10 @@ Responsify WP is the WordPress plugin that cares about responsive images.
 * Handpick which image sizes to use.
 * Responsive background images.
 
-Responsify WP finds all images inside the_content() and makes them responsive.
+### Demo
+[https://www.youtube.com/watch?v=3ThYWO6vHKI](https://www.youtube.com/watch?v=3ThYWO6vHKI&spfreload=10)  
+
+Responsify WP finds featured images and all images inside the content and makes them responsive.
 For example, you might have a template that looks like this:  
 
 	<article>
@@ -92,6 +97,9 @@ These settings can be overwritten from your templates.
 			'sizes' => array('large', 'full')
 		)
 	) );
+	foreach( $posts as $post ) {
+		// ...
+	}
 
 	// Using WP_Query()
 	$query = new WP_Query( array(
@@ -113,15 +121,15 @@ These settings can be overwritten from your templates.
 * Turn on/off retina.
 * Ignore image formats.
 
-### Picture::create( $type, $attachment_id, $settings )
-In your templates, you can use the ``Picture::create()`` function to generate Picturefill markup.  
+### Functions
+RWP provides a number of functions that can generate responsive images in your templates.
 Let's say that you have the following markup for a very large header image:
 
 	<header>
 		<?php the_post_thumbnail( 'full' ); ?>
 	</header>
 
-As you probably know, ``the_post_thumbnail()`` will just create a regular ``<img>`` tag for the full-size image in this case. 
+As you probably know, ``the_post_thumbnail()`` will create a regular ``<img>`` tag with the full-size image in this case. 
 But you don't want to send a big 1440px image to a mobile device. This can easily be solved like this:
 
 	<header>
@@ -129,14 +137,24 @@ But you don't want to send a big 1440px image to a mobile device. This can easil
 		$thumbnail_id = get_post_thumbnail_id( $post->ID );
 
 		// Generate an <img> tag with srcset/sizes attributes.
-		echo Picture::create( 'img', $thumbnail_id );
+		echo rwp_img( $thumbnail_id );
 
 		// Generate a <picture> element
-		echo Picture::create( 'element', $thumbnail_id );
+		echo rwp_picture( $thumbnail_id );
 		?>
 	</header>
 
-Full documentation and examples can be found at [GitHub](https://github.com/stefanledin/responsify-wp).
+### Website
+[http://responsifywp.com](http://responsifywp.com).
+
+### Demo
+[http://responsifywp.com/demo](http://responsifywp.com/demo).
+
+### Documentation and examples
+[https://github.com/stefanledin/responsify-wp](https://github.com/stefanledin/responsify-wp).
+
+### Requirements
+* PHP 5.3
 
 == Installation ==
 
@@ -164,16 +182,57 @@ Full documentation and examples can be found at [GitHub](https://github.com/stef
 
 == Screenshots ==
 
-1. Select the image sizes that you want to use in your templates. It's also 
-possible to specify your own media queries.
-2. Use the Picture::create() function to generate responsive images inside your templates.
-3. Congratulations! A responsive header image.
-4. You can also use the Picture::create( 'style' ) function to generate CSS and media queries for large background images.
-5. A <style> tag will be created and contains the generated media queries for the background.
-6.
-7.
+1. Select which filters that RWP should be applied on. Thumbnails (post_thumbnail_html) and content (the_content) is used by default.You can also select which markup pattern RWP should generate.
+2. 
+3. You can easily override the default media queries for each image size. You can specify different settings for different scenarios.
+4. 
 
 == Changelog ==
+= 1.9.6 =
+* Critical PHP 5.3 bugfix
+
+= 1.9.5 =
+* Bugfix. All image sizes was used if the one inserted through the editor wasn't selected by the user.
+
+= 1.9.4 =
+* Bugfix, Custom Media Queries.
+* Support for WordPress 4.4
+
+= 1.9.3 =
+* Updated the Picturefill polyfill to version 3.0.1.
+
+= 1.9.2 =
+* New feature: Debug mode. RWP adds an HTML comment with information about the image.
+* Bugfix. Retina + specified image.
+* Bugfix. The rwp_edit_generated_element filter is applied when calling rwp_img() and rwp_picture().
+
+= 1.9.1 =
+* Bugfix for the custom media query interface in Safari.
+* The ability to deselect the full image size is back. (Accidentally removed in RWP 1.9)
+* Minor improvements.
+
+= 1.9.0 =
+* Introducing a brand new user interface for managing custom media queries for the images.
+* New filter: rwp_edit_generated_element. It allows you to make changes to the generated element before it's inserted into the content.
+* Tested with WordPress 4.3 beta 3.
+* Improvements under the hood.
+
+= 1.8.0 =
+* Picture::create() has been replaced by rwp_img(), rwp_picture(), rwp_span(), rwp_style() and rwp_attributes(). (Picture::create() will still work)
+* New filter: rwp_edit_attributes. It allows you to edit the attributes before they are applied to the generated element.
+* Picturefill has been upgraded to version 2.3.1.
+* Bugfixes and improvements.
+* Tested with WordPress 4.2
+* Thanks to @mawosch for the help with this release.
+
+= 1.7.3 =
+* Picture::create('attributes') works with custom settings now.
+* Bugfix: RWP should not be applied on RSS feeds.
+
+= 1.7.2 =
+* New: RWP will ignore images with the 'rwp-not-responsive' class.
+* Bugfixes.
+
 = 1.7.1 =
 * Bugfix. The $content_width variable in functions.php could make the generated markup to be slightly incorret.
 
@@ -242,6 +301,37 @@ possible to specify your own media queries.
 * The content filter now works on PHP 5.3
 
 == Upgrade Notice ==
+= 1.9.6 =
+* Critical PHP 5.3 bugfix
+
+= 1.9.5 ==
+Bugfix.
+
+= 1.9.4 =
+Bugfixes and support for WordPress 4.4.
+
+= 1.9.3 =
+Updated the Picturefill polyfill to version 3.0.1.
+
+= 1.9.2 =
+New feature: Debug mode. Bugfixes.
+
+= 1.9.1 =
+Bugfixes and minor improvements.
+
+= 1.9.0 =
+Introducing a brand new user interface for managing custom media queries for the images. New filter: rwp_edit_generated_element.
+
+= 1.8.0 =
+Picture::create() has been replaced with new functions. Upgraded Picturefill to 2.3.1. Bugfixes and improvements. 
+
+= 1.7.3 =
+Picture::create('attributes') works with custom settings now. Bugfixes.
+
+= 1.7.2 =
+* New: RWP will ignore images with the 'rwp-not-responsive' class.
+* Bugfixes.
+
 = 1.7.1 =
 * Bugfix. The $content_width variable in functions.php could make the generated markup to be slightly incorret.
 

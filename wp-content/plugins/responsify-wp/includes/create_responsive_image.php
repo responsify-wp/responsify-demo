@@ -1,69 +1,78 @@
 <?php
 abstract class Create_Responsive_image
 {
-	protected $image_sizes;
-	protected $id;
-	protected $images;
-	protected $settings;
+    protected $image_sizes = array();
+    protected $id;
+    protected $images;
+    protected $settings;
+    protected $log;
+    protected $logger;
+    
+    public function __construct( $id, $settings )
+    {
+        $this->logger = new Logger;
 
-	public function __construct( $id, $settings )
-	{
-		$this->id = $id;
+        $this->id = $id;
+        $this->logger->add('Attachment ID', $this->id);
+        
         $this->settings = $settings;
 
         // 1. Get sizes
-        $this->image_sizes = $this->get_image_sizes();
+        $this->image_sizes = $this->get_all_avaliable_image_sizes();
+        // Retina
         if ( isset($this->settings['retina']) ) {
-            if ( !is_bool($this->settings['retina']) ) {
-                if ( isset($this->settings['sizes']) ) {
-                    $this->add_retina_sizes();
-                }
-                $this->set_retina_sizes();
-            }
-            if ( !$this->settings['retina'] ) {
-                $this->remove_retina_sizes();
-            }
+            $retina = new Retina( $this->settings );
+            $this->image_sizes = $retina->set_sizes( $this->image_sizes );
         }
+        $this->logger->add('Image sizes', $this->image_sizes);
 
         // 2. Get images 
         $this->images = $this->get_images( $this->image_sizes );
-
         // 3. Order the images by width
         $this->images = $this->order_images( $this->images );
-
+        // 4. Adds retina versions to the same array as the 'original' image.
         if ( isset($this->settings['retina']) && $this->settings['retina'] ) {
             $this->group_highres();
         }
+        // 5. Remove images that is larger than the one inserted into the editor.
+        if ( isset($this->settings['notBiggerThan']) ) {
+            $this->images = $this->remove_images_larger_than_inserted( $this->images, $this->settings['notBiggerThan'] );
+            $this->logger->add( 'Largest size that should be used', $this->settings['notBiggerThan'] );
+        }
+        $this->images = $this->remove_images_in_sizes_not_selected( $this->images, $this->get_image_sizes_selected_by_user());
+        
         $this->images = array_values($this->images);
-
-        // 4. Set the media queries
+        // 5. Set the media queries
         $user_media_queries = ( isset($settings['media_queries']) ) ? $settings['media_queries'] : null;
         $media_queries = new Media_Queries( $this->images, $user_media_queries );
         $this->images = $media_queries->set();
-	}
-
+        $this->logger->log_media_queries( $this->images );
+        
+        $this->log = $this->logger->get();
+    }
+    
     /**
-     * Finds images in the selected sizes.
+     * Finds images in all avaliable sizes
      *
      * @param $sizes
      * @return array
      */
     public function get_images( $sizes )
-	{
-		$images = array();
-		$image_srcs = array();
-
-        $notBiggerThan = (isset($this->settings['notBiggerThan'])) ? $this->settings['notBiggerThan'] : null;
-
+    {
+        $images = array();
+        $image_srcs = array();
         $image_meta_data = wp_get_attachment_metadata( $this->id );
-        $image_meta_data['sizes']['full'] = array(
-            'width' => $image_meta_data['width'],
-            'height' => $image_meta_data['height']
-        );
+        $image_meta_data['sizes']['full']['width'] = $image_meta_data['width'];
+        // According to a thread in the support forum, 'height' isn't always avaliable on full size images.
+        if ( $image_meta_data['height'] ) {
+            $image_meta_data['sizes']['full']['height'] = $image_meta_data['height'];
+        }
+        
+        $this->logger->add( 'Image width', ( isset($image_meta_data['width']) ) ? $image_meta_data['width'] : 'No width avaliable' );
+        $this->logger->add( 'Image height', ( isset($image_meta_data['height']) ) ? $image_meta_data['height'] : 'No height avaliable' );
 
         foreach ( $sizes as $size ) {
-            $image = $this->get_image($size);
-            #if ( in_array($image[0], $image_srcs) ) continue;
+            $image = $this->get_image( $size );
             if ( isset($image_meta_data['sizes'][$size]) ) {
                 array_push($images, array(
                     'src' => $image[0],
@@ -72,12 +81,17 @@ abstract class Create_Responsive_image
                     'height' => $image_meta_data['sizes'][$size]['height']
                 ));
                 array_push($image_srcs, $image[0]);
-                if ( isset($notBiggerThan) && ($image[0] == $notBiggerThan) ) break;
+                $this->logger->addArray( 'Image sizes found', $size );
+                $this->logger->addArray( 'Images found', "\n- $size: $image[0]" );
             } 
         }
-		return $images;
-	}
+        return $images;
+    }
     
+    /**
+     * Adds retina versions to the same array as
+     * the regular image. Thus they are grouped together.
+     */
     protected function group_highres() {
         $retina_image_indexes = array();
         for ($i=0; $i < count($this->images); $i++) { 
@@ -105,9 +119,9 @@ abstract class Create_Responsive_image
      * @return array
      */
     protected function get_image( $size )
-	{
-		return wp_get_attachment_image_src( $this->id, $size );
-	}
+    {
+        return wp_get_attachment_image_src( $this->id, $size );
+    }
 
     /**
      * Orders the array of images based on width.
@@ -116,73 +130,88 @@ abstract class Create_Responsive_image
      * @return array
      */
     protected function order_images( $images )
-	{
-		usort($images, function($img1, $img2) {
-			return $img1['width'] < $img2['width'] ? -1 : 1;
-		});
+    {
+        usort($images, function($img1, $img2) {
+            return $img1['width'] < $img2['width'] ? -1 : 1;
+        });
         return $images;
-	}
+    }
 
     /**
-     * Finds and returns all available image sizes.
+     * Removes images that is larger than the one inserted into the editor.
+     * For example, if medium is inserted, ignore large and full.
+     * 
+     * @param  array $images 
+     * @return array
+     */
+    protected function remove_images_larger_than_inserted( $images, $largest_image_url )
+    {
+        $valid_images = array();
+        foreach ( $images as $image ) {
+            $valid_images[] = $image;
+            if ( $image['src'] == $largest_image_url ) break;
+        }
+        return $valid_images;
+    }
+
+    /**
+     * Removes images in sizes that has not been selected by the user.
+     * If medium has been deselected, it will be removed. (Unless it's the sizes
+     * that has been inserted through the editor, that's why this method exists.)
+     *
+     * @param array $images
+     * @param array $selected_sizes
+     * @return array
+     */
+    protected function remove_images_in_sizes_not_selected( $images, $selected_sizes )
+    {
+        $self = $this;
+        $valid_images = array_map( function( $image ) use ($selected_sizes) {
+            if ( isset( $self->settings['notBiggerThan'] ) ) {
+                if ( $image['src'] == $self->settings['notBiggerThan'] ) {
+                    return $image;
+                }
+            }
+            if ( in_array( $image['size'], $selected_sizes ) ) {
+                return $image;
+            } else {
+                return null;
+            }
+        }, $images);
+        $valid_images = array_filter( $valid_images );
+        return $valid_images;
+    }
+
+    /**
+     * Finds and returns image sizes that has been selected by the user.
      *
      * @return array
      */
-    protected function get_image_sizes()
-	{
+    protected function get_image_sizes_selected_by_user()
+    {
         if ( isset($this->settings['sizes'])  ) return $this->settings['sizes'];
-
         $selected_sizes = get_option( 'selected_sizes' );
         $image_sizes = ( $selected_sizes ) ? array_keys($selected_sizes) : get_intermediate_image_sizes() ;
         if ( !in_array('full', $image_sizes) ) {
             array_push($image_sizes, 'full');
         }
         return $image_sizes;
-	}
-
-    protected function set_retina_sizes()
-    {
-        $densities = ( is_array($this->settings['retina']) ) 
-            ? $this->settings['retina']
-            : array( $this->settings['retina'] );
-        $image_sizes = array();
-        foreach ( $densities as $density ) {
-            foreach ( $this->image_sizes as $image_size ) {
-                if ( (!strpos($image_size, '@')) || (strpos($image_size, $density)) ) {
-                    if ( !in_array($image_size, $image_sizes) ) {
-                        array_push($image_sizes, $image_size);
-                    }
-                }
-            }                
-        }
-        $this->image_sizes = $image_sizes;
     }
 
-    protected function add_retina_sizes()
+    /**
+     * Finds and returns all available image sizes.
+     *
+     * @return array
+     */
+    protected function get_all_avaliable_image_sizes()
     {
-        $densities = ( is_array($this->settings['retina']) )
-            ? $this->settings['retina']
-            : array( $this->settings['retina'] );
-
-        foreach ($densities as $density) {
-            foreach ( $this->image_sizes as $image_size ) {
-                if ( !strpos($image_size, '@') ) {
-                    array_push($this->image_sizes, $image_size.'@'.$density);
-                }
-            }
+        $image_sizes = get_intermediate_image_sizes();
+        if ( !in_array('full', $image_sizes) ) {
+            array_push($image_sizes, 'full');
         }
+        return $image_sizes;
     }
-
-    protected function remove_retina_sizes()
-    {
-        $count = count($this->image_sizes);
-        for ($i=0; $i < $count; $i++) { 
-            if ( strpos($this->image_sizes[$i], '@') ) {
-                unset($this->image_sizes[$i]);
-            }
-        }
-    }
-
+    
     /**
      * Gets a meta value.
      *
@@ -191,7 +220,7 @@ abstract class Create_Responsive_image
      */
     protected function get_image_meta( $meta )
     {
-        return get_post_meta($this->id, '_wp_attachment_image_' . $meta, true);
+        return get_post_meta( $this->id, '_wp_attachment_image_' . $meta, true );
     }
 
     /**
@@ -210,5 +239,23 @@ abstract class Create_Responsive_image
         return substr($attributes, 0, -1);
     }
 
-
+    /**
+     * Add an HTML comment with all the
+     * debug information from the Logger.
+     * @param  string $markup 
+     * @return string
+     */
+    protected function prepend_debug_information( $markup )
+    {
+        $debug_information = "<!--\n### RWP Debug ###\n";
+        foreach ( $this->log as $key => $value ) {
+            if ( is_array($value) ) {
+                $value = implode(", ", $value);
+            }
+            $debug_information .= "$key: $value\n";
+        }
+        $debug_information .= '-->';
+        $markup = $debug_information . $markup;
+        return $markup;
+    }
 }

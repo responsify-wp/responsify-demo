@@ -8,7 +8,14 @@ class Img extends Create_Responsive_image
     {
         parent::__construct( $id, $settings );
         $this->set_attributes();
-        $this->markup = $this->create_markup();
+        if ( has_filter( 'rwp_edit_attributes' ) ) {
+            $this->settings['attributes'] = apply_filters( 'rwp_edit_attributes', $this->settings['attributes'] );
+        }
+        $markup = $this->create_markup();
+        if ( get_option( 'rwp_debug_mode', 'off' ) == 'on' ) {
+            $markup = $this->prepend_debug_information( $markup );
+        }
+        $this->markup = $markup;
     }
 
     protected function set_attributes()
@@ -62,7 +69,7 @@ class Img extends Create_Responsive_image
         $img_attributes = $this->create_attributes($this->settings['attributes']);
         $markup = '<img ';
             if ( count($this->images) == 1 ) : 
-                $markup .= 'src="'.$this->images[0]['src'].'" ';
+                $markup .= 'src="'.$this->images[0]['src'].'"';
             else:
                 $markup .= 'srcset="'.$this->srcset_attribute().'" ';
             endif;

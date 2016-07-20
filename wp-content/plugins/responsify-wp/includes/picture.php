@@ -18,7 +18,9 @@ class Picture
 
 		switch ( strtolower($type) ) {
             case 'attributes':
-                $responsive_image = self::create( $settings['element'], $id, array( 'output' => 'attributes' ) );
+                $default_settings = array( 'output' => 'attributes' );
+                $settings = ( $settings ) ? array_merge($settings, $default_settings) : $default_settings;
+                $responsive_image = self::create( $settings['element'], $id, $settings );
                 return $responsive_image;
                 break;
 
@@ -53,6 +55,11 @@ class Picture
         if ( isset($settings['output']) && $settings['output'] == 'attributes' ) {
             return $responsive_image->attributes;
         }
-        return $responsive_image->markup;
+        
+        $element = $responsive_image->markup;
+        if ( has_filter( 'rwp_edit_generated_element' ) ) {
+            $element = apply_filters( 'rwp_edit_generated_element', $element );
+        }
+        return $element;
 	}
 }
